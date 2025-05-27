@@ -1,0 +1,71 @@
+ECONOMIC REGIME CLASSIFICATION REPORT
+============================================================
+
+Data file: input/economic_indicators_lagged.csv
+Date range: 1973-01-31 00:00:00 to 2025-05-31 00:00:00
+Total observations: 622
+
+Model Performance:
+
+LOGISTIC_REGRESSION:
+Accuracy: 0.919
+
+Classification Report:
+              precision    recall  f1-score   support
+
+         1.0       0.71      0.77      0.74        13
+         2.0       1.00      0.84      0.91        19
+         3.0       0.96      0.95      0.96        86
+         4.0       0.62      1.00      0.77         5
+
+    accuracy                           0.92       123
+   macro avg       0.83      0.89      0.85       123
+weighted avg       0.93      0.92      0.92       123
+
+
+RANDOM_FOREST:
+Accuracy: 0.951
+
+Classification Report:
+              precision    recall  f1-score   support
+
+         1.0       0.86      0.92      0.89        13
+         2.0       0.90      1.00      0.95        19
+         3.0       0.99      0.97      0.98        86
+         4.0       0.75      0.60      0.67         5
+
+    accuracy                           0.95       123
+   macro avg       0.88      0.87      0.87       123
+weighted avg       0.95      0.95      0.95       123
+
+
+HMM:
+Accuracy: 0.179
+
+Classification Report:
+              precision    recall  f1-score   support
+
+         1.0       0.17      0.92      0.29        13
+         2.0       1.00      0.26      0.42        19
+         3.0       0.00      0.00      0.00        86
+         4.0       0.11      1.00      0.19         5
+
+    accuracy                           0.18       123
+   macro avg       0.32      0.55      0.22       123
+weighted avg       0.18      0.18      0.10       123
+
+
+Regime Characteristics:
+   regime_id  regime_name  observations  percentage  avg_duration_months  growth_score_mean  growth_score_std  inflation_score_mean  inflation_score_std  growth_momentum_mean  growth_momentum_std  inflation_momentum_mean  inflation_momentum_std  financial_stress_mean  financial_stress_std  yield_curve_mean  yield_curve_std   vix_mean    vix_std
+0          1   Goldilocks           206   33.715221            16.084615           0.290275          0.228085             -0.377319             0.217964              0.051061             0.224005                 0.009462                0.157332              -0.290959              0.501795          1.081092         0.869831  15.324005   8.007431
+1          2    Reflation           106   17.348609            15.371429           0.658908          0.537564              0.739910             0.609826             -0.002286             0.693440                 0.106293                0.265142               0.336889              0.755433          0.532191         0.749943   5.164565  10.017109
+2          3    Deflation           200   32.733224            15.512821          -0.457636          0.832016             -0.652741             0.381023              0.019909             0.932970                -0.049981                0.339396               0.032196              0.683166          1.053215         0.901508  18.741677  10.396808
+3          4  Stagflation            99   16.202946            15.076190          -0.669484          0.512622              1.136360             1.016635             -0.135191             0.376979                -0.096649                0.357147               0.581963              0.735232          0.165456         0.764184   8.223322  10.826117
+
+Latest Prediction:
+Current regime: Deflation
+Probabilities:
+  Goldilocks: 4.62%
+  Reflation: 0.00%
+  Deflation: 95.20%
+  Stagflation: 0.18%
