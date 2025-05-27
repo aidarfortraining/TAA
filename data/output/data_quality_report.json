@@ -1,0 +1,177 @@
+{
+  "GDPC1": {
+    "name": "Real GDP",
+    "raw_count": 313,
+    "first_date": "1947-01-01 00:00:00",
+    "last_date": "2025-01-01 00:00:00",
+    "frequency": "quarterly"
+  },
+  "INDPRO": {
+    "name": "Industrial Production Index",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "PAYEMS": {
+    "name": "Nonfarm Payrolls",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "UNRATE": {
+    "name": "Unemployment Rate",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "ICSA": {
+    "name": "Initial Jobless Claims",
+    "raw_count": 2733,
+    "first_date": "1973-01-06 00:00:00",
+    "last_date": "2025-05-17 00:00:00",
+    "frequency": "weekly"
+  },
+  "HOUST": {
+    "name": "Housing Starts",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "RSXFS": {
+    "name": "Retail Sales Ex Food Services",
+    "raw_count": 400,
+    "first_date": "1992-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "CPILFESL": {
+    "name": "Core CPI",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "CPIAUCSL": {
+    "name": "CPI All Items",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "PPIACO": {
+    "name": "PPI All Commodities",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "DCOILWTICO": {
+    "name": "WTI Oil Price",
+    "raw_count": 10273,
+    "first_date": "1986-01-02 00:00:00",
+    "last_date": "2025-05-19 00:00:00",
+    "frequency": "daily"
+  },
+  "T5YIE": {
+    "name": "5-Year Breakeven Inflation",
+    "raw_count": 5842,
+    "first_date": "2003-01-02 00:00:00",
+    "last_date": "2025-05-23 00:00:00",
+    "frequency": "daily"
+  },
+  "T10YIE": {
+    "name": "10-Year Breakeven Inflation",
+    "raw_count": 5842,
+    "first_date": "2003-01-02 00:00:00",
+    "last_date": "2025-05-23 00:00:00",
+    "frequency": "daily"
+  },
+  "DFF": {
+    "name": "Federal Funds Rate",
+    "raw_count": 19135,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-05-22 00:00:00",
+    "frequency": "daily"
+  },
+  "DGS10": {
+    "name": "10-Year Treasury Rate",
+    "raw_count": 13669,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-05-22 00:00:00",
+    "frequency": "daily"
+  },
+  "DGS2": {
+    "name": "2-Year Treasury Rate",
+    "raw_count": 12778,
+    "first_date": "1976-06-01 00:00:00",
+    "last_date": "2025-05-22 00:00:00",
+    "frequency": "daily"
+  },
+  "T10Y2Y": {
+    "name": "10Y-2Y Spread",
+    "raw_count": 12779,
+    "first_date": "1976-06-01 00:00:00",
+    "last_date": "2025-05-23 00:00:00",
+    "frequency": "daily"
+  },
+  "M2SL": {
+    "name": "M2 Money Supply",
+    "raw_count": 627,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-03-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "VIXCLS": {
+    "name": "VIX",
+    "raw_count": 9233,
+    "first_date": "1990-01-02 00:00:00",
+    "last_date": "2025-05-22 00:00:00",
+    "frequency": "daily"
+  },
+  "DEXUSEU": {
+    "name": "USD/EUR Exchange Rate",
+    "raw_count": 6880,
+    "first_date": "1999-01-04 00:00:00",
+    "last_date": "2025-05-16 00:00:00",
+    "frequency": "daily"
+  },
+  "BAMLH0A0HYM2": {
+    "name": "High Yield Spread",
+    "raw_count": 7503,
+    "first_date": "1996-12-31 00:00:00",
+    "last_date": "2025-05-22 00:00:00",
+    "frequency": "daily"
+  },
+  "UMCSENT": {
+    "name": "Consumer Sentiment",
+    "raw_count": 627,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-03-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "AWHMAN": {
+    "name": "Average Weekly Hours Manufacturing",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "NEWORDER": {
+    "name": "Manufacturers New Orders",
+    "raw_count": 627,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-03-01 00:00:00",
+    "frequency": "monthly"
+  },
+  "PERMIT": {
+    "name": "Building Permits",
+    "raw_count": 628,
+    "first_date": "1973-01-01 00:00:00",
+    "last_date": "2025-04-01 00:00:00",
+    "frequency": "monthly"
+  }
+}
