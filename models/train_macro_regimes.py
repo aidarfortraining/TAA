@@ -1,11 +1,5 @@
 """
 Economic Regime Classification System for TAA Portfolio Management
-Version: 2.1 (Optimized)
-Author: TAA System
-Last Updated: December 2024
-
-This module implements a sophisticated economic regime classification system
-based on Ray Dalio's four-quadrant framework for all-weather investing.
 """
 
 import pandas as pd
@@ -16,13 +10,15 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score
+
 import warnings
 warnings.filterwarnings('ignore')
+
 from datetime import datetime
 import joblib
 import json
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import logging
 import os
 
@@ -52,7 +48,7 @@ class RegimeDefinition:
 
 class EconomicRegimeClassifier:
     """
-    Economic regime classification system based on Ray Dalio's methodology
+    Economic regime classification system
 
     Four main regimes:
     1. Goldilocks (Growth + Low Inflation)
@@ -174,7 +170,7 @@ class EconomicRegimeClassifier:
 
         standardized = pd.DataFrame()
         for col in columns:
-            if '_MOM' in col:  # Monthly changes need annualization
+            if '_MOM' in col:
                 values = self.df[col] * 12
             else:
                 values = self.df[col]
@@ -262,7 +258,7 @@ class EconomicRegimeClassifier:
 
     def create_advanced_features(self, regime_data: pd.DataFrame,
                                preserve_data: bool = False) -> pd.DataFrame:
-        """Create advanced features for ML models"""
+        """Create features for ML models"""
         logger.info("Creating advanced features...")
 
         features = regime_data.copy()

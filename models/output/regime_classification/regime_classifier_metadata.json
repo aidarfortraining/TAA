@@ -1,5 +1,5 @@
 {
-  "training_date": "2025-05-27T16:54:24.749618",
+  "training_date": "2025-05-31T21:48:20.456992",
   "best_model": "random_forest",
   "features_count": 32,
   "preserve_data_mode": false,
