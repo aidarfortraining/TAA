@@ -1,12 +1,9 @@
 """
-Улучшенная система сбора экономических данных для TAA (Tactical Asset Allocation)
-Версия 2.0 - с исправлением проблем квартальных данных и многими улучшениями
+Economic Data Collection System for TAA (Tactical Asset Allocation)
 """
 
 import pandas as pd
-import numpy as np
 from fredapi import Fred
-from datetime import datetime, timedelta
 import warnings
 import os
 import json
@@ -16,127 +13,122 @@ import seaborn as sns
 
 warnings.filterwarnings('ignore')
 
-# Настройка параметров
-START_DATE = '1973-01-01'  # Оптимальная точка - полные данные для большинства индикаторов
+# Configuration parameters
+START_DATE = '1973-01-01'  # Optimal point - complete data for most indicators
 END_DATE = pd.Timestamp.now().strftime('%Y-%m-%d')
 
-# Создаем директории для вывода, если не существуют
+# Create output directories if they don't exist
 os.makedirs('output', exist_ok=True)
 os.makedirs('output/plots', exist_ok=True)
 
 
 class ImprovedEconomicDataCollector:
-    """
-    Улучшенный класс для сбора экономических данных.
-    Исправлены проблемы с квартальными данными и добавлены новые функции.
-    """
-
     def __init__(self, api_key: str, start_date: str = START_DATE, end_date: str = END_DATE):
         """
-        Инициализация с API ключом как параметром для безопасности
+        Initialize with API key as parameter for security
         """
         self.start_date = start_date
         self.end_date = end_date
         self.fred = Fred(api_key=api_key)
-        self.data_quality_report = {}  # Для отчета о качестве данных
+        self.data_quality_report = {}  # For data quality report
 
-        # Расширенный словарь индикаторов с дополнительными параметрами
+        # Extended dictionary of indicators with additional parameters
         self.indicators = {
-            # ИНДИКАТОРЫ ЭКОНОМИЧЕСКОГО РОСТА
+            # ECONOMIC GROWTH INDICATORS
             'growth_indicators': {
                 'GDPC1': {
                     'name': 'Real GDP',
-                    'description': 'Реальный ВВП США (с поправкой на инфляцию)',
+                    'description': 'US Real GDP (inflation-adjusted)',
                     'frequency': 'quarterly',
                     'transform': 'yoy_growth',
-                    'publication_lag': 30,  # Публикуется с задержкой ~30 дней
-                    'start_date_override': None  # Используем общую дату начала
+                    'publication_lag': 30,  # Published with ~30 day lag
+                    'start_date_override': None  # Use common start date
                 },
                 'INDPRO': {
                     'name': 'Industrial Production Index',
-                    'description': 'Индекс промышленного производства',
+                    'description': 'Industrial production index',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 15
                 },
                 'PAYEMS': {
                     'name': 'Nonfarm Payrolls',
-                    'description': 'Занятость в несельскохозяйственном секторе',
+                    'description': 'Nonfarm employment',
                     'frequency': 'monthly',
                     'transform': 'mom_change',
                     'publication_lag': 5
                 },
                 'UNRATE': {
                     'name': 'Unemployment Rate',
-                    'description': 'Уровень безработицы',
+                    'description': 'Unemployment rate',
                     'frequency': 'monthly',
                     'transform': 'level',
                     'publication_lag': 5
                 },
                 'ICSA': {
                     'name': 'Initial Jobless Claims',
-                    'description': 'Первичные заявки на пособие по безработице',
+                    'description': 'Initial jobless claims',
                     'frequency': 'weekly',
                     'transform': '4week_ma',
                     'publication_lag': 5
                 },
                 'HOUST': {
                     'name': 'Housing Starts',
-                    'description': 'Начало строительства жилья',
+                    'description': 'Housing starts',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 18
                 },
                 'RSXFS': {
                     'name': 'Retail Sales Ex Food Services',
-                    'description': 'Розничные продажи без учета питания',
+                    'description': 'Retail sales excluding food services',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 14
                 }
             },
 
-            # ИНДИКАТОРЫ ИНФЛЯЦИИ
+            # INFLATION INDICATORS
             'inflation_indicators': {
                 'CPILFESL': {
                     'name': 'Core CPI',
-                    'description': 'Базовая инфляция (без еды и энергии)',
+                    'description': 'Core inflation (excluding food and energy)',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 12
                 },
                 'CPIAUCSL': {
                     'name': 'CPI All Items',
-                    'description': 'Общий индекс потребительских цен',
+                    'description': 'Consumer price index all items',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 12
                 },
                 'PPIACO': {
                     'name': 'PPI All Commodities',
-                    'description': 'Индекс цен производителей',
+                    'description': 'Producer price index',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 14
                 },
                 'DCOILWTICO': {
                     'name': 'WTI Oil Price',
-                    'description': 'Цена нефти WTI',
+                    'description': 'WTI oil price',
                     'frequency': 'daily',
                     'transform': 'monthly_avg_yoy',
                     'publication_lag': 1
                 },
                 'T5YIE': {
                     'name': '5-Year Breakeven Inflation',
-                    'description': '5-летние инфляционные ожидания',
+                    'description': '5-year inflation expectations',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1,
-                    'start_date_override': '2003-01-01'  # Данные доступны с 2003
+                    'start_date_override': '2003-01-01'  # Data available from 2003
                 },
                 'T10YIE': {
                     'name': '10-Year Breakeven Inflation',
-                    'description': '10-летние инфляционные ожидания',
+                    'description': '10-year inflation expectations',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1,
@@ -144,66 +136,66 @@ class ImprovedEconomicDataCollector:
                 }
             },
 
-            # МОНЕТАРНЫЕ И ФИНАНСОВЫЕ ИНДИКАТОРЫ
+            # MONETARY AND FINANCIAL INDICATORS
             'monetary_indicators': {
                 'DFF': {
                     'name': 'Federal Funds Rate',
-                    'description': 'Ставка ФРС',
+                    'description': 'Fed funds rate',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1
                 },
                 'DGS10': {
                     'name': '10-Year Treasury Rate',
-                    'description': 'Доходность 10-летних облигаций',
+                    'description': '10-year Treasury yield',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1
                 },
                 'DGS2': {
                     'name': '2-Year Treasury Rate',
-                    'description': 'Доходность 2-летних облигаций',
+                    'description': '2-year Treasury yield',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1
                 },
                 'T10Y2Y': {
                     'name': '10Y-2Y Spread',
-                    'description': 'Спред доходности (кривая доходности)',
+                    'description': 'Yield spread (yield curve)',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1
                 },
                 'M2SL': {
                     'name': 'M2 Money Supply',
-                    'description': 'Денежная масса M2',
+                    'description': 'M2 money supply',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 14
                 }
             },
 
-            # ИНДИКАТОРЫ РЫНОЧНОГО СТРЕССА И НАСТРОЕНИЙ
+            # MARKET STRESS AND SENTIMENT INDICATORS
             'market_indicators': {
                 'VIXCLS': {
                     'name': 'VIX',
-                    'description': 'Индекс волатильности (страха)',
+                    'description': 'Volatility index (fear index)',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1,
-                    'start_date_override': '1990-01-01'  # VIX начинается с 1990
+                    'start_date_override': '1990-01-01'  # VIX starts from 1990
                 },
                 'DEXUSEU': {
                     'name': 'USD/EUR Exchange Rate',
-                    'description': 'Курс доллара к евро',
+                    'description': 'USD to EUR exchange rate',
                     'frequency': 'daily',
                     'transform': 'monthly_avg_yoy',
                     'publication_lag': 1,
-                    'start_date_override': '1999-01-01'  # EUR появился в 1999
+                    'start_date_override': '1999-01-01'  # EUR appeared in 1999
                 },
                 'BAMLH0A0HYM2': {
                     'name': 'High Yield Spread',
-                    'description': 'Спред высокодоходных облигаций',
+                    'description': 'High yield bond spread',
                     'frequency': 'daily',
                     'transform': 'monthly_avg',
                     'publication_lag': 1,
@@ -211,32 +203,32 @@ class ImprovedEconomicDataCollector:
                 },
                 'UMCSENT': {
                     'name': 'Consumer Sentiment',
-                    'description': 'Потребительские настроения',
+                    'description': 'Consumer sentiment',
                     'frequency': 'monthly',
                     'transform': 'level',
                     'publication_lag': 0
                 }
             },
 
-            # ОПЕРЕЖАЮЩИЕ ИНДИКАТОРЫ
+            # LEADING INDICATORS
             'leading_indicators': {
                 'AWHMAN': {
                     'name': 'Average Weekly Hours Manufacturing',
-                    'description': 'Средняя рабочая неделя в производстве',
+                    'description': 'Average weekly hours in manufacturing',
                     'frequency': 'monthly',
                     'transform': 'yoy_change',
                     'publication_lag': 5
                 },
                 'NEWORDER': {
                     'name': 'Manufacturers New Orders',
-                    'description': 'Новые заказы производителей',
+                    'description': 'Manufacturers new orders',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 35
                 },
                 'PERMIT': {
                     'name': 'Building Permits',
-                    'description': 'Разрешения на строительство',
+                    'description': 'Building permits',
                     'frequency': 'monthly',
                     'transform': 'yoy_growth',
                     'publication_lag': 18
@@ -246,15 +238,15 @@ class ImprovedEconomicDataCollector:
 
     def fetch_single_indicator(self, series_id: str, indicator_info: Dict) -> Optional[pd.DataFrame]:
         """
-        Улучшенная загрузка индикатора с обработкой особых случаев
+        Indicator loading with special case handling
         """
         try:
-            print(f"Загружаю {indicator_info['name']} ({series_id})...")
+            print(f"Loading {indicator_info['name']} ({series_id})...")
 
-            # Определяем дату начала для конкретного индикатора
+            # Determine start date for specific indicator
             start_date = indicator_info.get('start_date_override', self.start_date)
 
-            # Получаем сырые данные
+            # Get raw data
             data = self.fred.get_series(
                 series_id,
                 observation_start=start_date,
@@ -262,14 +254,14 @@ class ImprovedEconomicDataCollector:
             )
 
             if data is None or len(data) == 0:
-                print(f"  ⚠️  Нет данных для {series_id}")
+                print(f"  ⚠️  No data for {series_id}")
                 return None
 
-            # Преобразуем в DataFrame
+            # Convert to DataFrame
             df = pd.DataFrame(data, columns=[series_id])
             df.index = pd.to_datetime(df.index)
 
-            # Сохраняем информацию о качестве данных
+            # Save data quality information
             self.data_quality_report[series_id] = {
                 'name': indicator_info['name'],
                 'raw_count': len(df),
@@ -278,7 +270,7 @@ class ImprovedEconomicDataCollector:
                 'frequency': indicator_info['frequency']
             }
 
-            # Применяем трансформации
+            # Apply transformations
             df_transformed = self.apply_transformation(
                 df,
                 series_id,
@@ -286,29 +278,29 @@ class ImprovedEconomicDataCollector:
                 indicator_info['frequency']
             )
 
-            print(f"  ✓ Загружено: {len(df_transformed)} наблюдений")
+            print(f"  ✓ Loaded: {len(df_transformed)} observations")
 
             return df_transformed
 
         except Exception as e:
-            print(f"  ✗ Ошибка при загрузке {series_id}: {str(e)}")
+            print(f"  ✗ Error loading {series_id}: {str(e)}")
             return None
 
     def apply_transformation(self, df: pd.DataFrame, series_id: str,
                            transform_type: str, frequency: str) -> pd.DataFrame:
         """
-        Улучшенное применение трансформаций с учетом частоты данных
+        Transformation application considering data frequency
         """
-        # Сначала применяем базовые трансформации
+        # First apply basic transformations
         if transform_type == 'level':
             result = df
 
         elif transform_type == 'yoy_growth':
             if frequency == 'quarterly':
-                # Для квартальных данных - рост к соответствующему кварталу прошлого года
+                # For quarterly data - growth vs corresponding quarter last year
                 df[f'{series_id}_YOY'] = df[series_id].pct_change(periods=4) * 100
             else:
-                # Для месячных данных - к соответствующему месяцу
+                # For monthly data - vs corresponding month
                 df[f'{series_id}_YOY'] = df[series_id].pct_change(periods=12) * 100
             result = df[[f'{series_id}_YOY']]
 
@@ -317,11 +309,11 @@ class ImprovedEconomicDataCollector:
             result = df[[f'{series_id}_MOM']]
 
         elif transform_type == '4week_ma':
-            # Применяем 4-недельную скользящую среднюю
+            # Apply 4-week moving average
             df_ma = df.copy()
             df_ma[f'{series_id}_4WMA'] = df[series_id].rolling(window=4, min_periods=1).mean()
-            # Для недельных данных сначала делаем ресемпл к месячной частоте
-            # берем среднее значение за месяц
+            # For weekly data first resample to monthly frequency
+            # take monthly average
             df_monthly = df_ma[[f'{series_id}_4WMA']].resample('M').mean()
             result = df_monthly
 
@@ -346,114 +338,114 @@ class ImprovedEconomicDataCollector:
 
     def standardize_frequency_improved(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Продвинутая стандартизация частоты с интеллектуальным сглаживанием
+        Frequency standardization with intelligent smoothing
 
-        Ключевые принципы:
-        1. Все данные приводятся к месячной частоте через усреднение
-        2. Высокочастотные данные сглаживаются перед агрегацией
-        3. Квартальные данные распределяются правильно
-        4. Минимизация потери информации
+        Key principles:
+        1. All data is converted to monthly frequency through averaging
+        2. High-frequency data is smoothed before aggregation
+        3. Quarterly data is distributed correctly
+        4. Minimize information loss
         """
-        print("\nСтандартизация частоты данных...")
+        print("\nStandardizing data frequency...")
 
-        # Определяем временные границы
+        # Determine time boundaries
         first_valid = df.first_valid_index()
         last_valid = df.last_valid_index()
 
         if first_valid is None or last_valid is None:
             return df
 
-        # Создаем единый месячный индекс
+        # Create unified monthly index
         monthly_index = pd.date_range(
             start=first_valid.replace(day=1),
             end=last_valid,
             freq='M'
         )
 
-        # Результирующий DataFrame
+        # Resulting DataFrame
         df_monthly = pd.DataFrame(index=monthly_index)
 
-        # Обрабатываем каждый столбец индивидуально
+        # Process each column individually
         for col in df.columns:
-            print(f"  Обработка {col}...", end="")
+            print(f"  Processing {col}...", end="")
             series = df[col].dropna()
 
             if len(series) == 0:
-                print(" пропущен (нет данных)")
+                print(" skipped (no data)")
                 continue
 
-            # Анализируем частоту данных
+            # Analyze data frequency
             freq_info = self._analyze_frequency(series)
 
             if freq_info['type'] == 'quarterly':
-                # Специальная обработка квартальных данных
+                # Special handling for quarterly data
                 monthly_data = self._quarterly_to_monthly_proper(series)
                 df_monthly[col] = monthly_data
-                print(f" квартальные → месячные (метод распределения)")
+                print(f" quarterly → monthly (distribution method)")
 
             elif freq_info['type'] == 'monthly':
-                # Месячные данные просто выравниваем по индексу
+                # Monthly data just align to index
                 series_aligned = series.resample('M').last()
                 df_monthly[col] = series_aligned
-                print(f" месячные (выравнивание)")
+                print(f" monthly (alignment)")
 
             elif freq_info['type'] == 'weekly':
-                # Недельные данные - усредняем по месяцам
-                # Сначала применяем легкое сглаживание
+                # Weekly data - average by month
+                # First apply light smoothing
                 series_smooth = series.rolling(
-                    window=2,  # 2-недельное окно
+                    window=2,  # 2-week window
                     min_periods=1,
                     center=True
                 ).mean()
                 series_monthly = series_smooth.resample('M').mean()
                 df_monthly[col] = series_monthly
-                print(f" недельные → месячные (среднее)")
+                print(f" weekly → monthly (average)")
 
             elif freq_info['type'] == 'daily':
-                # Дневные данные - применяем адаптивное сглаживание
-                # Определяем оптимальное окно сглаживания на основе волатильности
+                # Daily data - apply adaptive smoothing
+                # Determine optimal smoothing window based on volatility
                 volatility = series.pct_change().std()
 
-                if volatility > 0.05:  # Высокая волатильность (например, VIX, валюты)
+                if volatility > 0.05:  # High volatility (e.g., VIX, currencies)
                     window = 10
-                    print_suffix = "высокая волатильность"
-                elif volatility > 0.02:  # Средняя волатильность
+                    print_suffix = "high volatility"
+                elif volatility > 0.02:  # Medium volatility
                     window = 7
-                    print_suffix = "средняя волатильность"
-                else:  # Низкая волатильность (например, процентные ставки)
+                    print_suffix = "medium volatility"
+                else:  # Low volatility (e.g., interest rates)
                     window = 5
-                    print_suffix = "низкая волатильность"
+                    print_suffix = "low volatility"
 
-                # Применяем адаптивное сглаживание
+                # Apply adaptive smoothing
                 series_smooth = self._adaptive_smooth(series, window=window)
                 series_monthly = series_smooth.resample('M').mean()
                 df_monthly[col] = series_monthly
-                print(f" дневные → месячные ({print_suffix}, окно={window})")
+                print(f" daily → monthly ({print_suffix}, window={window})")
 
             else:
-                # Неопределенная частота - используем безопасный подход
+                # Undefined frequency - use safe approach
                 series_monthly = series.resample('M').mean()
                 df_monthly[col] = series_monthly
-                print(f" неопределенная частота → месячные (среднее)")
+                print(f" undefined frequency → monthly (average)")
 
-        # Интеллектуальное заполнение пропусков
-        print("\nЗаполнение пропусков...")
+        # Intelligent missing value filling
+        print("\nFilling missing values...")
         df_monthly = self._smart_fill_missing(df_monthly)
 
-        print(f"\nСтандартизация завершена:")
-        print(f"  Итоговая форма: {df_monthly.shape}")
-        print(f"  Период: {df_monthly.index.min()} - {df_monthly.index.max()}")
+        print(f"\nStandardization complete:")
+        print(f"  Final shape: {df_monthly.shape}")
+        print(f"  Period: {df_monthly.index.min()} - {df_monthly.index.max()}")
 
         return df_monthly
 
     def _analyze_frequency(self, series: pd.Series) -> dict:
         """
-        Анализирует частоту временного ряда
+        Analyzes time series frequency
         """
         if len(series) < 2:
             return {'type': 'unknown', 'days': None}
 
-        # Пробуем определить частоту через pandas
+        # Try to determine frequency through pandas
         freq_guess = pd.infer_freq(series.index)
 
         if freq_guess:
@@ -466,8 +458,8 @@ class ImprovedEconomicDataCollector:
             elif 'D' in freq_guess or 'B' in freq_guess:
                 return {'type': 'daily', 'freq': freq_guess}
 
-        # Если pandas не смог определить, анализируем вручную
-        # Берем медианную разницу между наблюдениями
+        # If pandas couldn't determine, analyze manually
+        # Take median difference between observations
         time_diffs = series.index.to_series().diff().dt.days.dropna()
         median_days = time_diffs.median()
 
@@ -484,37 +476,37 @@ class ImprovedEconomicDataCollector:
 
     def _adaptive_smooth(self, series: pd.Series, window: int) -> pd.Series:
         """
-        Адаптивное сглаживание с обработкой выбросов
+        Adaptive smoothing with outlier handling
         """
-        # Шаг 1: Определяем и обрабатываем выбросы
-        # Используем метод IQR (межквартильный размах)
+        # Step 1: Identify and handle outliers
+        # Use IQR (interquartile range) method
         Q1 = series.quantile(0.25)
         Q3 = series.quantile(0.75)
         IQR = Q3 - Q1
 
-        # Определяем границы выбросов
+        # Define outlier boundaries
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
 
-        # Создаем копию для обработки
+        # Create copy for processing
         series_clean = series.copy()
 
-        # Заменяем выбросы на границы (винзоризация)
+        # Replace outliers with boundaries (winsorization)
         series_clean = series_clean.clip(lower=lower_bound, upper=upper_bound)
 
-        # Шаг 2: Применяем скользящую среднюю с разными весами
-        # Используем экспоненциально взвешенную среднюю для более плавного результата
+        # Step 2: Apply moving average with different weights
+        # Use exponentially weighted average for smoother results
         series_smooth = series_clean.ewm(
             span=window,
-            min_periods=int(window * 0.6),  # Минимум 60% окна для валидного значения
-            adjust=True  # Корректировка для начала ряда
+            min_periods=int(window * 0.6),  # Minimum 60% of window for valid value
+            adjust=True  # Adjustment for series beginning
         ).mean()
 
         return series_smooth
 
     def _smart_fill_missing(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Интеллектуальное заполнение пропущенных значений
+        Intelligent missing value filling
         """
         df_filled = df.copy()
 
@@ -524,61 +516,61 @@ class ImprovedEconomicDataCollector:
             if missing_count == 0:
                 continue
 
-            # Определяем характер пропусков
+            # Determine missing pattern
             total_count = len(df[col])
             missing_pct = missing_count / total_count
 
             if missing_pct > 0.5:
-                # Если больше половины данных отсутствует, не заполняем
-                print(f"  {col}: слишком много пропусков ({missing_pct:.1%}), оставляем как есть")
+                # If more than half data is missing, don't fill
+                print(f"  {col}: too many missing values ({missing_pct:.1%}), leaving as is")
                 continue
 
-            # Определяем паттерн пропусков
+            # Determine missing pattern
             is_start_missing = df[col].iloc[:12].isna().sum() > 6
             is_end_missing = df[col].iloc[-12:].isna().sum() > 6
 
             if is_start_missing and not is_end_missing:
-                # Пропуски в начале - используем backward fill с ограничением
+                # Missing at start - use backward fill with limit
                 df_filled[col] = df[col].fillna(method='bfill', limit=6)
-                print(f"  {col}: заполнение пропусков в начале (bfill)")
+                print(f"  {col}: filling missing values at start (bfill)")
 
             elif is_end_missing and not is_start_missing:
-                # Пропуски в конце - используем forward fill с ограничением
+                # Missing at end - use forward fill with limit
                 df_filled[col] = df[col].fillna(method='ffill', limit=6)
-                print(f"  {col}: заполнение пропусков в конце (ffill)")
+                print(f"  {col}: filling missing values at end (ffill)")
 
             else:
-                # Пропуски в середине или распределены - используем интерполяцию
-                # Сначала заполняем краевые значения
+                # Missing in middle or distributed - use interpolation
+                # First fill edge values
                 df_filled[col] = df[col].fillna(method='ffill', limit=3)
                 df_filled[col] = df_filled[col].fillna(method='bfill', limit=3)
 
-                # Затем интерполируем оставшиеся
+                # Then interpolate remaining
                 if df_filled[col].isna().sum() > 0:
                     df_filled[col] = df_filled[col].interpolate(
                         method='polynomial',
-                        order=2,  # Квадратичная интерполяция
-                        limit=6,  # Максимум 6 месяцев подряд
+                        order=2,  # Quadratic interpolation
+                        limit=6,  # Maximum 6 consecutive months
                         limit_direction='both'
                     )
-                print(f"  {col}: интерполяция внутренних пропусков")
+                print(f"  {col}: interpolating internal missing values")
 
         return df_filled
 
     def _quarterly_to_monthly_proper(self, quarterly_series: pd.Series) -> pd.Series:
         """
-        Правильное преобразование квартальных данных в месячные
-        Решает проблему смещения First_Valid
+        Proper conversion of quarterly data to monthly
+        Solves First_Valid offset issue
         """
-        # Создаем результирующую серию
+        # Create resulting series
         result = pd.Series(dtype=float)
 
         for date, value in quarterly_series.items():
-            # Определяем квартал и год
+            # Determine quarter and year
             year = date.year
             quarter = date.quarter
 
-            # Определяем месяцы для квартала
+            # Determine months for quarter
             if quarter == 1:
                 months = [1, 2, 3]
             elif quarter == 2:
@@ -588,9 +580,9 @@ class ImprovedEconomicDataCollector:
             else:
                 months = [10, 11, 12]
 
-            # Присваиваем значение всем месяцам квартала
+            # Assign value to all months of quarter
             for month in months:
-                # Используем последний день месяца для консистентности
+                # Use last day of month for consistency
                 month_end = pd.Timestamp(year=year, month=month, day=1) + pd.offsets.MonthEnd(0)
                 result[month_end] = value
 
@@ -598,63 +590,63 @@ class ImprovedEconomicDataCollector:
 
     def add_composite_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Улучшенное создание составных индикаторов с проверками
+        Creation of composite indicators with validation
         """
-        print("\nСоздание составных индикаторов...")
+        print("\nCreating composite indicators...")
 
-        # Стандартизируем данные перед созданием композитов
+        # Standardize data before creating composites
         df_standardized = df.copy()
 
-        # Z-score нормализация для корректного усреднения
+        # Z-score normalization for correct averaging
         for col in df_standardized.columns:
             if df_standardized[col].std() > 0:
                 df_standardized[col] = (df_standardized[col] - df_standardized[col].mean()) / df_standardized[col].std()
 
-        # Индикатор финансового стресса
+        # Financial stress indicator
         stress_components = []
         if 'VIX' in df.columns:
             stress_components.append(df_standardized['VIX'])
         if 'High Yield Spread' in df.columns:
             stress_components.append(df_standardized['High Yield Spread'])
         if '10Y-2Y Spread' in df.columns:
-            # Инвертируем, так как отрицательный спред = стресс
+            # Invert since negative spread = stress
             stress_components.append(-df_standardized['10Y-2Y Spread'])
 
         if stress_components:
             df['Financial_Stress_Index'] = pd.concat(stress_components, axis=1).mean(axis=1)
-            print("  ✓ Создан Financial_Stress_Index")
+            print("  ✓ Created Financial_Stress_Index")
 
-        # Композитный индикатор роста
+        # Composite growth indicator
         growth_cols = ['Real GDP', 'Industrial Production Index', 'Retail Sales Ex Food Services',
                       'Nonfarm Payrolls']
         available_growth = [col for col in growth_cols if col in df.columns]
         if len(available_growth) >= 2:
             df['Composite_Growth'] = df_standardized[available_growth].mean(axis=1)
-            print(f"  ✓ Создан Composite_Growth из {len(available_growth)} компонентов")
+            print(f"  ✓ Created Composite_Growth from {len(available_growth)} components")
 
-        # Композитный индикатор инфляции
+        # Composite inflation indicator
         inflation_cols = ['Core CPI', 'CPI All Items', 'PPI All Commodities']
         available_inflation = [col for col in inflation_cols if col in df.columns]
         if len(available_inflation) >= 2:
             df['Composite_Inflation'] = df_standardized[available_inflation].mean(axis=1)
-            print(f"  ✓ Создан Composite_Inflation из {len(available_inflation)} компонентов")
+            print(f"  ✓ Created Composite_Inflation from {len(available_inflation)} components")
 
-        # Индикатор экономического режима (простая версия)
+        # Economic regime indicator (simple version)
         if 'Composite_Growth' in df.columns and 'Composite_Inflation' in df.columns:
             df['Economic_Regime_Score'] = df['Composite_Growth'] - 0.5 * df['Composite_Inflation']
-            print("  ✓ Создан Economic_Regime_Score")
+            print("  ✓ Created Economic_Regime_Score")
 
         return df
 
     def apply_publication_lag(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Применяет реалистичные публикационные лаги к данным
+        Apply realistic publication lags to data
         """
-        print("\nПрименение публикационных лагов...")
+        print("\nApplying publication lags...")
 
         df_lagged = df.copy()
 
-        # Собираем информацию о лагах
+        # Collect lag information
         lag_info = {}
         for category in self.indicators.values():
             for series_id, info in category.items():
@@ -663,59 +655,59 @@ class ImprovedEconomicDataCollector:
                     if lag_days > 0:
                         lag_info[info['name']] = lag_days
 
-        # Применяем лаги
+        # Apply lags
         for col, lag_days in lag_info.items():
             if col in df_lagged.columns:
-                # Сдвигаем данные на количество дней публикационного лага
-                df_lagged[col] = df_lagged[col].shift(periods=lag_days // 30)  # Приблизительно в месяцах
-                print(f"  Применен лаг {lag_days} дней к {col}")
+                # Shift data by publication lag days
+                df_lagged[col] = df_lagged[col].shift(periods=lag_days // 30)  # Approximately in months
+                print(f"  Applied {lag_days} day lag to {col}")
 
         return df_lagged
 
     def create_data_quality_plots(self, df: pd.DataFrame):
         """
-        Создает визуализации для оценки качества данных
+        Create visualizations for data quality assessment
         """
-        print("\nСоздание визуализаций качества данных...")
+        print("\nCreating data quality visualizations...")
 
-        # 1. Heatmap доступности данных
+        # 1. Data availability heatmap
         plt.figure(figsize=(20, 12))
 
-        # Создаем бинарную матрицу доступности
+        # Create binary availability matrix
         availability = (~df.isna()).astype(int)
 
-        # Агрегируем по годам для лучшей визуализации
+        # Aggregate by year for better visualization
         yearly_availability = availability.resample('Y').mean()
 
-        sns.heatmap(yearly_availability.T, cmap='RdYlGn', cbar_kws={'label': 'Доля доступных данных'},
+        sns.heatmap(yearly_availability.T, cmap='RdYlGn', cbar_kws={'label': 'Data Availability Rate'},
                    xticklabels=[str(d.year) for d in yearly_availability.index[::5]],
                    yticklabels=yearly_availability.columns)
 
-        plt.title('Доступность данных по годам', fontsize=16, pad=20)
-        plt.xlabel('Год', fontsize=12)
-        plt.ylabel('Индикатор', fontsize=12)
+        plt.title('Data Availability by Year', fontsize=16, pad=20)
+        plt.xlabel('Year', fontsize=12)
+        plt.ylabel('Indicator', fontsize=12)
         plt.xticks(rotation=45)
         plt.tight_layout()
         plt.savefig('output/plots/data_availability_heatmap.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-        # 2. График покрытия данных по времени
+        # 2. Data coverage timeline
         plt.figure(figsize=(15, 8))
 
         coverage = availability.sum(axis=1) / len(df.columns) * 100
         coverage_smooth = coverage.rolling(window=12).mean()
 
-        plt.plot(coverage.index, coverage, alpha=0.3, label='Месячное покрытие')
-        plt.plot(coverage_smooth.index, coverage_smooth, linewidth=2, label='12-месячное среднее')
+        plt.plot(coverage.index, coverage, alpha=0.3, label='Monthly coverage')
+        plt.plot(coverage_smooth.index, coverage_smooth, linewidth=2, label='12-month average')
 
-        # Добавляем важные экономические события
+        # Add important economic events
         events = {
-            '1973-10': 'Нефтяной кризис',
-            '1979-07': 'Второй нефтяной шок',
-            '1987-10': 'Черный понедельник',
-            '1990-07': 'Рецессия начала 90-х',
-            '2000-03': 'Крах доткомов',
-            '2008-09': 'Финансовый кризис',
+            '1973-10': 'Oil Crisis',
+            '1979-07': 'Second Oil Shock',
+            '1987-10': 'Black Monday',
+            '1990-07': 'Early 90s Recession',
+            '2000-03': 'Dot-com Crash',
+            '2008-09': 'Financial Crisis',
             '2020-03': 'COVID-19'
         }
 
@@ -726,32 +718,32 @@ class ImprovedEconomicDataCollector:
                 plt.text(event_date, plt.ylim()[1]*0.95, event, rotation=90,
                         verticalalignment='top', fontsize=9)
 
-        plt.title('Покрытие данных во времени', fontsize=16)
-        plt.xlabel('Дата', fontsize=12)
-        plt.ylabel('Процент доступных индикаторов', fontsize=12)
+        plt.title('Data Coverage Over Time', fontsize=16)
+        plt.xlabel('Date', fontsize=12)
+        plt.ylabel('Percentage of Available Indicators', fontsize=12)
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
         plt.savefig('output/plots/data_coverage_timeline.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-        print("  ✓ Визуализации сохранены в output/plots/")
+        print("  ✓ Visualizations saved to output/plots/")
 
     def generate_quality_report(self, df: pd.DataFrame):
         """
-        Генерирует детальный отчет о качестве данных
+        Generate detailed data quality report
         """
         report = []
         report.append("="*80)
-        report.append("ОТЧЕТ О КАЧЕСТВЕ ДАННЫХ")
+        report.append("DATA QUALITY REPORT")
         report.append("="*80)
-        report.append(f"\nПериод данных: {df.index.min()} - {df.index.max()}")
-        report.append(f"Всего индикаторов: {len(df.columns)}")
-        report.append(f"Всего наблюдений: {len(df)}")
+        report.append(f"\nData period: {df.index.min()} - {df.index.max()}")
+        report.append(f"Total indicators: {len(df.columns)}")
+        report.append(f"Total observations: {len(df)}")
 
-        # Статистика по покрытию
+        # Coverage statistics
         report.append("\n" + "-"*60)
-        report.append("СТАТИСТИКА ПОКРЫТИЯ")
+        report.append("COVERAGE STATISTICS")
         report.append("-"*60)
 
         for col in df.columns:
@@ -759,70 +751,70 @@ class ImprovedEconomicDataCollector:
             if len(valid_data) > 0:
                 coverage_pct = (len(valid_data) / len(df)) * 100
                 report.append(f"\n{col}:")
-                report.append(f"  Первое значение: {valid_data.index[0]}")
-                report.append(f"  Последнее значение: {valid_data.index[-1]}")
-                report.append(f"  Покрытие: {coverage_pct:.1f}%")
-                report.append(f"  Пропущенных значений: {df[col].isna().sum()}")
+                report.append(f"  First value: {valid_data.index[0]}")
+                report.append(f"  Last value: {valid_data.index[-1]}")
+                report.append(f"  Coverage: {coverage_pct:.1f}%")
+                report.append(f"  Missing values: {df[col].isna().sum()}")
 
-        # Сохраняем отчет
+        # Save report
         with open('output/data_quality_report.txt', 'w', encoding='utf-8') as f:
             f.write('\n'.join(report))
 
-        print("\n  ✓ Отчет о качестве данных сохранен в output/data_quality_report.txt")
+        print("\n  ✓ Data quality report saved to output/data_quality_report.txt")
 
     def collect_all_data(self) -> pd.DataFrame:
         """
-        Основной метод сбора всех данных с улучшениями
+        Main method to collect all data with improvements
         """
         all_data = {}
         failed_indicators = []
 
-        # Проходим по всем категориям индикаторов
+        # Process all indicator categories
         for category, indicators in self.indicators.items():
             print(f"\n{'='*60}")
-            print(f"Загрузка категории: {category}")
+            print(f"Loading category: {category}")
             print(f"{'='*60}")
 
             for series_id, info in indicators.items():
                 df = self.fetch_single_indicator(series_id, info)
                 if df is not None and len(df) > 0:
-                    # Сохраняем с понятным именем
+                    # Save with readable name
                     column_name = df.columns[0]
                     all_data[info['name']] = df[column_name]
                 else:
                     failed_indicators.append((series_id, info['name']))
 
         if failed_indicators:
-            print(f"\n⚠️  Не удалось загрузить {len(failed_indicators)} индикаторов:")
+            print(f"\n⚠️  Failed to load {len(failed_indicators)} indicators:")
             for series_id, name in failed_indicators:
                 print(f"   - {name} ({series_id})")
 
-        # Объединяем все данные в один DataFrame
+        # Combine all data into one DataFrame
         combined_df = pd.DataFrame(all_data)
 
-        # Применяем улучшенную стандартизацию частоты
+        # Apply improved frequency standardization
         combined_df = self.standardize_frequency_improved(combined_df)
 
-        print(f"\n✓ Сбор данных завершен!")
-        print(f"  Форма итогового датафрейма: {combined_df.shape}")
-        print(f"  Период: {combined_df.index.min()} - {combined_df.index.max()}")
+        print(f"\n✓ Data collection complete!")
+        print(f"  Final dataframe shape: {combined_df.shape}")
+        print(f"  Period: {combined_df.index.min()} - {combined_df.index.max()}")
 
         return combined_df
 
     def save_data(self, df: pd.DataFrame, df_lagged: Optional[pd.DataFrame] = None):
         """
-        Сохраняет данные с улучшенной организацией
+        Save data with improved organization
         """
-        # Сохраняем основные данные
+        # Save raw data
         df.to_csv('output/economic_indicators_raw.csv')
-        print(f"\n✓ Сырые данные сохранены в: output/economic_indicators_raw.csv")
+        print(f"\n✓ Raw data saved to: output/economic_indicators_raw.csv")
 
-        # Сохраняем данные с лагами, если предоставлены
+        # Save lagged data if provided
         if df_lagged is not None:
             df_lagged.to_csv('output/economic_indicators_lagged.csv')
-            print(f"✓ Данные с лагами сохранены в: output/economic_indicators_lagged.csv")
+            print(f"✓ Lagged data saved to: output/economic_indicators_lagged.csv")
 
-        # Создаем детальное описание данных
+        # Create detailed data description
         description = pd.DataFrame({
             'Indicator': df.columns,
             'First_Valid': df.apply(lambda x: x.first_valid_index()),
@@ -837,73 +829,73 @@ class ImprovedEconomicDataCollector:
         })
 
         description.to_csv('output/data_description_detailed.csv')
-        print(f"✓ Детальное описание сохранено в: output/data_description_detailed.csv")
+        print(f"✓ Detailed description saved to: output/data_description_detailed.csv")
 
-        # Сохраняем отчет о качестве данных в JSON
+        # Save data quality report in JSON
         with open('output/data_quality_report.json', 'w') as f:
             json.dump(self.data_quality_report, f, indent=2, default=str)
-        print(f"✓ Отчет о качестве в JSON: output/data_quality_report.json")
+        print(f"✓ Quality report in JSON: output/data_quality_report.json")
 
 
 def collect_economic_data_improved(api_key: str,
                                  create_plots: bool = True,
                                  apply_lags: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Улучшенная функция для сбора экономических данных
+    Function for collecting economic data
 
     Parameters:
     -----------
     api_key : str
-        Ваш FRED API ключ
+        Your FRED API key
     create_plots : bool
-        Создавать ли визуализации качества данных
+        Whether to create data quality visualizations
     apply_lags : bool
-        Применять ли публикационные лаги
+        Whether to apply publication lags
 
     Returns:
     --------
     tuple : (df_raw, df_lagged)
-        df_raw - сырые данные без лагов
-        df_lagged - данные с применением публикационных лагов
+        df_raw - raw data without lags
+        df_lagged - data with publication lags applied
     """
     print("="*80)
-    print("УЛУЧШЕННАЯ СИСТЕМА СБОРА ЭКОНОМИЧЕСКИХ ДАННЫХ v2.0")
+    print("ECONOMIC DATA COLLECTION SYSTEM")
     print("="*80)
 
-    # Создаем экземпляр коллектора
+    # Create collector instance
     collector = ImprovedEconomicDataCollector(api_key=api_key)
 
-    # Собираем все базовые индикаторы
+    # Collect all base indicators
     df = collector.collect_all_data()
 
-    # Добавляем составные индикаторы
+    # Add composite indicators
     df = collector.add_composite_indicators(df)
 
-    # Создаем версию с публикационными лагами
+    # Create version with publication lags
     df_lagged = None
     if apply_lags:
         df_lagged = collector.apply_publication_lag(df)
 
-    # Создаем визуализации
+    # Create visualizations
     if create_plots:
         collector.create_data_quality_plots(df)
 
-    # Генерируем отчет о качестве
+    # Generate quality report
     collector.generate_quality_report(df)
 
-    # Сохраняем результаты
+    # Save results
     collector.save_data(df, df_lagged)
 
-    # Выводим итоговую статистику
+    # Output final statistics
     print("\n" + "="*80)
-    print("ИТОГОВАЯ СТАТИСТИКА")
+    print("FINAL STATISTICS")
     print("="*80)
-    print(f"\nВсего собрано индикаторов: {len(df.columns)}")
-    print(f"Период данных: {df.index.min()} - {df.index.max()}")
-    print(f"Всего месячных наблюдений: {len(df)}")
+    print(f"\nTotal indicators collected: {len(df.columns)}")
+    print(f"Data period: {df.index.min()} - {df.index.max()}")
+    print(f"Total monthly observations: {len(df)}")
 
-    # Статистика покрытия по декадам
-    print("\nПокрытие данных по декадам:")
+    # Coverage statistics by decade
+    print("\nData coverage by decade:")
     for decade in range(1970, 2030, 10):
         decade_start = pd.Timestamp(f'{decade}-01-01')
         decade_end = pd.Timestamp(f'{decade+9}-12-31')
@@ -915,16 +907,16 @@ def collect_economic_data_improved(api_key: str,
     return df, df_lagged
 
 
-# Пример использования
+# Example usage
 if __name__ == "__main__":
-    # ВАЖНО: Замените на ваш реальный API ключ!
+    # IMPORTANT: Replace with your real API key!
     API_KEY = '853c1faa729f41dc3f06e369d4bd66bd'
 
-    # Запускаем улучшенный сбор данных
+    # Run improved data collection
     df_raw, df_lagged = collect_economic_data_improved(
         api_key=API_KEY,
         create_plots=True,
         apply_lags=True
     )
 
-    print("\n✓ Процесс завершен! Проверьте папку output/ для результатов.")
+    print("\n✓ Process complete! Check the output/ folder for results.")
