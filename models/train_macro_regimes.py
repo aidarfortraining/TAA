@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score
@@ -215,14 +214,34 @@ class EconomicRegimeClassifier:
 
         regimes = pd.Series(index=regime_data.index, dtype=int)
 
-        # Apply classification rules
-        growth_positive = regime_data['growth_score'] > 0
-        inflation_low = regime_data['inflation_score'] < 0
+        # Optimize thresholds based on data distribution
+        # Use 40th percentile for growth (slightly below median)
+        # Use 60th percentile for inflation (slightly above median)
+        growth_threshold = regime_data['growth_score'].quantile(0.40)
+        inflation_threshold = regime_data['inflation_score'].quantile(0.60)
+
+        logger.info(f"Using optimized thresholds: growth={growth_threshold:.3f}, inflation={inflation_threshold:.3f}")
+
+        # Apply classification rules with optimized thresholds
+        growth_positive = regime_data['growth_score'] > growth_threshold
+        inflation_low = regime_data['inflation_score'] < inflation_threshold
 
         regimes[growth_positive & inflation_low] = 1  # Goldilocks
         regimes[growth_positive & ~inflation_low] = 2  # Reflation
         regimes[~growth_positive & inflation_low] = 3  # Deflation
         regimes[~growth_positive & ~inflation_low] = 4  # Stagflation
+
+        # Ensure all values are assigned
+        if regimes.isna().any():
+            logger.warning(f"Found {regimes.isna().sum()} NaN values in regime classification. Filling with mode.")
+            mode_regime = regimes.mode()[0] if len(regimes.mode()) > 0 else 1
+            regimes = regimes.fillna(mode_regime)
+
+        # Ensure values are in correct range
+        regimes = regimes.astype(int)
+        if regimes.min() < 1 or regimes.max() > 4:
+            logger.error(f"Invalid regime values detected: min={regimes.min()}, max={regimes.max()}")
+            regimes = np.clip(regimes, 1, 4)
 
         # Smooth transitions
         return self._smooth_regime_transitions(regimes, min_duration=2)
@@ -328,22 +347,27 @@ class EconomicRegimeClassifier:
         if len(X) < 100:
             logger.warning("Limited data for modeling. Results may be less reliable.")
 
-        # Time-based train/test split
-        # Use last 20% of data for testing
-        split_point = int(len(X) * 0.8)
+        # Time-based train/validation/test split
+        # 60% train, 20% validation, 20% test
+        train_end = int(len(X) * 0.6)
+        val_end = int(len(X) * 0.8)
 
-        X_train = X.iloc[:split_point]
-        X_test = X.iloc[split_point:]
-        y_train = y.iloc[:split_point]
-        y_test = y.iloc[split_point:]
+        X_train = X.iloc[:train_end]
+        X_val = X.iloc[train_end:val_end]
+        X_test = X.iloc[val_end:]
+        y_train = y.iloc[:train_end]
+        y_val = y.iloc[train_end:val_end]
+        y_test = y.iloc[val_end:]
 
-        logger.info(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
+        logger.info(f"Train size: {len(X_train)}, Val size: {len(X_val)}, Test size: {len(X_test)}")
         logger.info(f"Train period: {X_train.index[0]} to {X_train.index[-1]}")
+        logger.info(f"Val period: {X_val.index[0]} to {X_val.index[-1]}")
         logger.info(f"Test period: {X_test.index[0]} to {X_test.index[-1]}")
 
         # Scale features
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
+        X_val_scaled = scaler.transform(X_val)
         X_test_scaled = scaler.transform(X_test)
 
         self.scaler = scaler
@@ -361,34 +385,20 @@ class EconomicRegimeClassifier:
             class_weight='balanced'
         )
 
-        # Time series cross-validation
-        n_splits = min(3, len(X_train) // 60)
-        if n_splits > 1:
-            tscv = TimeSeriesSplit(n_splits=n_splits)
-            cv_scores = []
-
-            for train_idx, val_idx in tscv.split(X_train_scaled):
-                lr_temp = LogisticRegression(
-                    multi_class='multinomial',
-                    solver='lbfgs',
-                    max_iter=1000,
-                    random_state=42,
-                    class_weight='balanced'
-                )
-                lr_temp.fit(X_train_scaled[train_idx], y_train.iloc[train_idx])
-                val_pred = lr_temp.predict(X_train_scaled[val_idx])
-                cv_scores.append(accuracy_score(y_train.iloc[val_idx], val_pred))
-
-            logger.info(f"LR CV mean accuracy: {np.mean(cv_scores):.3f}")
-
-        # Train final model
+        # Train and validate
         lr_model.fit(X_train_scaled, y_train)
+        lr_val_pred = lr_model.predict(X_val_scaled)
+        lr_val_accuracy = accuracy_score(y_val, lr_val_pred)
+        logger.info(f"LR Validation Accuracy: {lr_val_accuracy:.3f}")
+
+        # Test
         lr_pred = lr_model.predict(X_test_scaled)
         lr_accuracy = accuracy_score(y_test, lr_pred)
 
         results['logistic_regression'] = {
             'model': lr_model,
             'accuracy': lr_accuracy,
+            'val_accuracy': lr_val_accuracy,
             'predictions': lr_pred,
             'classification_report': classification_report(y_test, lr_pred)
         }
@@ -401,33 +411,42 @@ class EconomicRegimeClassifier:
 
         logger.info(f"Logistic Regression Test Accuracy: {lr_accuracy:.3f}")
 
-        # 2. Random Forest
+        # 2. Random Forest with stronger regularization
         logger.info("Training Random Forest...")
 
-        # Simple hyperparameter selection
-        if len(X_train) < 200:
-            rf_params = {'n_estimators': 50, 'max_depth': 5}
-        else:
-            rf_params = {'n_estimators': 100, 'max_depth': 10}
+        # Stronger regularization parameters
+        rf_params = {
+            'n_estimators': 100,
+            'max_depth': 3,
+            'min_samples_split': 30,  # Increased minimum
+            'min_samples_leaf': max(10, len(X_train) // 40),   # Increased minimum
+            'max_features': 'sqrt',
+            'bootstrap': True,
+            'oob_score': True,
+            'random_state': 42,
+            'n_jobs': -1,
+            'class_weight': 'balanced_subsample'
+        }
 
-        rf_model = RandomForestClassifier(
-            **rf_params,
-            min_samples_split=max(2, len(X_train) // 50),
-            min_samples_leaf=max(1, len(X_train) // 100),
-            random_state=42,
-            n_jobs=-1,
-            class_weight='balanced'
-        )
+        rf_model = RandomForestClassifier(**rf_params)
 
+        # Train and validate
         rf_model.fit(X_train_scaled, y_train)
+        rf_val_pred = rf_model.predict(X_val_scaled)
+        rf_val_accuracy = accuracy_score(y_val, rf_val_pred)
+        logger.info(f"RF Validation Accuracy: {rf_val_accuracy:.3f}")
+
+        # Test
         rf_pred = rf_model.predict(X_test_scaled)
         rf_accuracy = accuracy_score(y_test, rf_pred)
 
         results['random_forest'] = {
             'model': rf_model,
             'accuracy': rf_accuracy,
+            'val_accuracy': rf_val_accuracy,
             'predictions': rf_pred,
-            'classification_report': classification_report(y_test, rf_pred)
+            'classification_report': classification_report(y_test, rf_pred),
+            'oob_score': rf_model.oob_score_ if hasattr(rf_model, 'oob_score_') else None
         }
 
         self.feature_importance['random_forest'] = pd.DataFrame({
@@ -436,17 +455,26 @@ class EconomicRegimeClassifier:
         }).sort_values('importance', ascending=False)
 
         logger.info(f"Random Forest Test Accuracy: {rf_accuracy:.3f}")
+        if hasattr(rf_model, 'oob_score_'):
+            logger.info(f"Random Forest OOB Score: {rf_model.oob_score_:.3f}")
+
+        # Check for overfitting
+        for model_name in results:
+            val_acc = results[model_name]['val_accuracy']
+            test_acc = results[model_name]['accuracy']
+            if val_acc - test_acc > 0.1:
+                logger.warning(f"{model_name}: Possible overfitting. Val accuracy: {val_acc:.3f}, Test accuracy: {test_acc:.3f}")
 
         # Calculate transition matrix from predictions
         self._calculate_transition_matrix(y_test, results)
 
-        # Select best model
-        best_model_name = max(results.keys(), key=lambda k: results[k]['accuracy'])
+        # Select best model based on validation accuracy
+        best_model_name = max(results.keys(), key=lambda k: results[k]['val_accuracy'])
         self.best_model = results[best_model_name]['model']
         self.best_model_name = best_model_name
         self.models = {name: result['model'] for name, result in results.items()}
 
-        logger.info(f"\nBest model: {best_model_name} with accuracy {results[best_model_name]['accuracy']:.3f}")
+        logger.info(f"\nBest model: {best_model_name} with test accuracy {results[best_model_name]['accuracy']:.3f}")
 
         return results
 
