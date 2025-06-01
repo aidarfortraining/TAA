@@ -26,14 +26,6 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try importing HMM
-try:
-    from hmmlearn import hmm
-    HMM_AVAILABLE = True
-except ImportError:
-    logger.warning("hmmlearn not installed. HMM models will not be available.")
-    HMM_AVAILABLE = False
-
 
 class RegimeDefinition:
     """Definition of economic regime with quantitative criteria"""
@@ -323,7 +315,15 @@ class EconomicRegimeClassifier:
         X = features.loc[common_index]
         y = labels.loc[common_index]
 
+        # Ensure labels are integers between 1 and 4
+        y = y.astype(int)
+        if y.min() < 1 or y.max() > 4:
+            logger.warning(f"Labels outside expected range [1, 4]: min={y.min()}, max={y.max()}")
+            # Clip to valid range
+            y = np.clip(y, 1, 4)
+
         logger.info(f"Total samples for modeling: {len(X)}")
+        logger.info(f"Label distribution: {y.value_counts().sort_index().to_dict()}")
 
         if len(X) < 100:
             logger.warning("Limited data for modeling. Results may be less reliable.")
@@ -437,73 +437,8 @@ class EconomicRegimeClassifier:
 
         logger.info(f"Random Forest Test Accuracy: {rf_accuracy:.3f}")
 
-        # 3. Hidden Markov Model (if available)
-        if HMM_AVAILABLE and len(X_train) > 100:
-            logger.info("Training Hidden Markov Model...")
-
-            # Use key features for HMM
-            hmm_features = ['growth_score', 'inflation_score', 'growth_momentum', 'inflation_momentum']
-            hmm_features = [f for f in hmm_features if f in X.columns]
-
-            if len(hmm_features) >= 2:
-                X_hmm_train = X_train[hmm_features].values
-                X_hmm_test = X_test[hmm_features].values
-
-                # Train HMM
-                best_hmm = None
-                best_score = -np.inf
-
-                for attempt in range(3):
-                    try:
-                        hmm_model = hmm.GaussianHMM(
-                            n_components=4,
-                            covariance_type="full",
-                            n_iter=100,
-                            random_state=42 + attempt
-                        )
-                        hmm_model.fit(X_hmm_train)
-                        score = hmm_model.score(X_hmm_train)
-
-                        if score > best_score:
-                            best_score = score
-                            best_hmm = hmm_model
-                    except:
-                        continue
-
-                if best_hmm is not None:
-                    # Predict states
-                    hmm_states_train = best_hmm.predict(X_hmm_train)
-                    hmm_states_test = best_hmm.predict(X_hmm_test)
-
-                    # Map HMM states to regimes
-                    state_to_regime = {}
-                    for state in range(4):
-                        mask = hmm_states_train == state
-                        if mask.sum() > 0:
-                            most_common = pd.Series(y_train[mask]).mode()
-                            if len(most_common) > 0:
-                                state_to_regime[state] = most_common[0]
-
-                    # Apply mapping
-                    hmm_pred = pd.Series(hmm_states_test).map(state_to_regime).fillna(1).astype(int).values
-                    hmm_accuracy = accuracy_score(y_test, hmm_pred)
-
-                    results['hmm'] = {
-                        'model': best_hmm,
-                        'accuracy': hmm_accuracy,
-                        'predictions': hmm_pred,
-                        'transition_matrix': best_hmm.transmat_,
-                        'classification_report': classification_report(y_test, hmm_pred)
-                    }
-
-                    logger.info(f"HMM Accuracy: {hmm_accuracy:.3f}")
-
-                    # Save transition matrix
-                    self.transition_matrix = pd.DataFrame(
-                        best_hmm.transmat_,
-                        index=[f"From_{self.regimes[state_to_regime.get(i, 1)].name}" for i in range(4)],
-                        columns=[f"To_{self.regimes[state_to_regime.get(i, 1)].name}" for i in range(4)]
-                    )
+        # Calculate transition matrix from predictions
+        self._calculate_transition_matrix(y_test, results)
 
         # Select best model
         best_model_name = max(results.keys(), key=lambda k: results[k]['accuracy'])
@@ -514,6 +449,45 @@ class EconomicRegimeClassifier:
         logger.info(f"\nBest model: {best_model_name} with accuracy {results[best_model_name]['accuracy']:.3f}")
 
         return results
+
+    def _calculate_transition_matrix(self, true_labels: pd.Series, results: Dict):
+        """Calculate regime transition matrix from best model predictions"""
+        # Get best model predictions
+        best_accuracy = -1
+        best_predictions = None
+
+        for model_name, result in results.items():
+            if result['accuracy'] > best_accuracy:
+                best_accuracy = result['accuracy']
+                best_predictions = result['predictions']
+
+        if best_predictions is not None:
+            # Calculate transitions
+            transitions = np.zeros((4, 4))
+
+            # Convert predictions to numpy array and ensure they are integers
+            predictions_array = np.array(best_predictions, dtype=int)
+
+            for i in range(len(predictions_array) - 1):
+                from_regime = int(predictions_array[i]) - 1
+                to_regime = int(predictions_array[i + 1]) - 1
+
+                # Validate regime indices are in valid range
+                if 0 <= from_regime < 4 and 0 <= to_regime < 4:
+                    transitions[from_regime, to_regime] += 1
+                else:
+                    logger.warning(f"Invalid regime transition: {predictions_array[i]} -> {predictions_array[i + 1]}")
+
+            # Normalize to get probabilities
+            row_sums = transitions.sum(axis=1)
+            row_sums[row_sums == 0] = 1  # Avoid division by zero
+            transition_probs = transitions / row_sums[:, np.newaxis]
+
+            self.transition_matrix = pd.DataFrame(
+                transition_probs,
+                index=[f"From_{self.regimes[i+1].name}" for i in range(4)],
+                columns=[f"To_{self.regimes[i+1].name}" for i in range(4)]
+            )
 
     def predict_regime(self, current_data: pd.DataFrame,
                       model_name: Optional[str] = None) -> Dict:
@@ -625,7 +599,6 @@ class EconomicRegimeClassifier:
             ends.append(regimes.index[-1])
 
         # Match starts with ends properly
-        # Some ends might come before starts due to the data starting in a regime
         valid_durations = []
         for i, start in enumerate(starts):
             # Find the first end after this start
@@ -917,12 +890,6 @@ if __name__ == "__main__":
     DATA_PATH = 'input/economic_indicators_lagged.csv'
     OUTPUT_DIR = 'output/regime_classification'
 
-    # Check HMM availability
-    if not HMM_AVAILABLE:
-        print("WARNING: hmmlearn not installed. HMM models will be skipped.")
-        print("To install: pip install hmmlearn")
-        print()
-
     try:
         # Create output directory
         os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -950,8 +917,6 @@ if __name__ == "__main__":
                 f.write(f"Accuracy: {model_result['accuracy']:.3f}\n")
                 if 'classification_report' in model_result:
                     f.write(f"\nClassification Report:\n{model_result['classification_report']}\n")
-                else:
-                    f.write("(No detailed classification report available)\n")
 
             f.write("\nRegime Characteristics:\n")
             f.write(results['regime_characteristics'].to_string())
