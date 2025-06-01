@@ -90,6 +90,8 @@ class EconomicRegimeClassifier:
         self.regime_history = None
         self.transition_matrix = None
         self.preserve_data_mode = False
+        self.growth_threshold = 0.0
+        self.inflation_threshold = 0.0
 
     def _validate_data(self):
         """Validate data has required indicators"""
@@ -219,6 +221,10 @@ class EconomicRegimeClassifier:
         # Use 60th percentile for inflation (slightly above median)
         growth_threshold = regime_data['growth_score'].quantile(0.40)
         inflation_threshold = regime_data['inflation_score'].quantile(0.60)
+
+        # Save thresholds
+        self.growth_threshold = growth_threshold
+        self.inflation_threshold = inflation_threshold
 
         logger.info(f"Using optimized thresholds: growth={growth_threshold:.3f}, inflation={inflation_threshold:.3f}")
 
@@ -418,8 +424,8 @@ class EconomicRegimeClassifier:
         rf_params = {
             'n_estimators': 100,
             'max_depth': 3,
-            'min_samples_split': 30,  # Increased minimum
-            'min_samples_leaf': max(10, len(X_train) // 40),   # Increased minimum
+            'min_samples_split': 30,
+            'min_samples_leaf': max(10, len(X_train) // 40),
             'max_features': 'sqrt',
             'bootstrap': True,
             'oob_score': True,
@@ -604,6 +610,9 @@ class EconomicRegimeClassifier:
                 for indicator in available_indicators:
                     stats[f'{indicator}_mean'] = regime_data[indicator].mean()
                     stats[f'{indicator}_std'] = regime_data[indicator].std()
+                    if indicator in ['growth_score', 'inflation_score']:
+                        stats[f'{indicator}_min'] = regime_data[indicator].min()
+                        stats[f'{indicator}_max'] = regime_data[indicator].max()
 
                 regime_stats.append(stats)
 
@@ -805,7 +814,9 @@ class EconomicRegimeClassifier:
             'transition_matrix': self.transition_matrix,
             'feature_importance': self.feature_importance,
             'models': self.models,
-            'preserve_data_mode': self.preserve_data_mode
+            'preserve_data_mode': self.preserve_data_mode,
+            'growth_threshold': self.growth_threshold,
+            'inflation_threshold': self.inflation_threshold
         }
 
         joblib.dump(model_package, filepath)
@@ -816,6 +827,8 @@ class EconomicRegimeClassifier:
             'best_model': self.best_model_name,
             'features_count': len(self.feature_names) if self.feature_names else 0,
             'preserve_data_mode': self.preserve_data_mode,
+            'growth_threshold': float(self.growth_threshold),
+            'inflation_threshold': float(self.inflation_threshold),
             'regimes': {
                 str(k): {
                     'name': v.name,
@@ -883,6 +896,19 @@ class EconomicRegimeClassifier:
         print(regime_characteristics[['regime_name', 'observations', 'percentage',
                                     'avg_duration_months']].round(2))
 
+        # Print score ranges for each regime
+        logger.info("\nScore ranges by regime:")
+        for _, row in regime_characteristics.iterrows():
+            logger.info(f"{row['regime_name']}:")
+            if 'growth_score_min' in row:
+                logger.info(f"  Growth: [{row['growth_score_min']:.3f}, {row['growth_score_max']:.3f}] (mean: {row['growth_score_mean']:.3f})")
+            if 'inflation_score_min' in row:
+                logger.info(f"  Inflation: [{row['inflation_score_min']:.3f}, {row['inflation_score_max']:.3f}] (mean: {row['inflation_score_mean']:.3f})")
+
+        logger.info(f"\nClassification thresholds used:")
+        logger.info(f"Growth threshold: {self.growth_threshold:.3f}")
+        logger.info(f"Inflation threshold: {self.inflation_threshold:.3f}")
+
         # 7. Create visualizations
         plot_path = os.path.join(output_dir, 'regime_analysis.png') if output_dir else 'regime_analysis.png'
         self.plot_regime_analysis(features, regimes, save_path=plot_path)
@@ -937,17 +963,31 @@ if __name__ == "__main__":
             f.write("="*60 + "\n\n")
             f.write(f"Data file: {DATA_PATH}\n")
             f.write(f"Date range: {classifier.df.index[0]} to {classifier.df.index[-1]}\n")
-            f.write(f"Total observations: {len(results['regime_history'])}\n\n")
+            f.write(f"Total observations: {len(results['regime_history'])}\n")
+            f.write(f"Growth threshold: {classifier.growth_threshold:.3f}\n")
+            f.write(f"Inflation threshold: {classifier.inflation_threshold:.3f}\n\n")
 
             f.write("Model Performance:\n")
             for model_name, model_result in results['model_results'].items():
                 f.write(f"\n{model_name.upper()}:\n")
-                f.write(f"Accuracy: {model_result['accuracy']:.3f}\n")
+                if 'val_accuracy' in model_result:
+                    f.write(f"Validation Accuracy: {model_result['val_accuracy']:.3f}\n")
+                f.write(f"Test Accuracy: {model_result['accuracy']:.3f}\n")
+                if 'oob_score' in model_result and model_result['oob_score']:
+                    f.write(f"OOB Score: {model_result['oob_score']:.3f}\n")
                 if 'classification_report' in model_result:
                     f.write(f"\nClassification Report:\n{model_result['classification_report']}\n")
 
             f.write("\nRegime Characteristics:\n")
             f.write(results['regime_characteristics'].to_string())
+
+            f.write("\n\nScore Ranges by Regime:\n")
+            for _, row in results['regime_characteristics'].iterrows():
+                f.write(f"\n{row['regime_name']}:\n")
+                if 'growth_score_min' in row:
+                    f.write(f"  Growth: [{row['growth_score_min']:.3f}, {row['growth_score_max']:.3f}] (mean: {row['growth_score_mean']:.3f})\n")
+                if 'inflation_score_min' in row:
+                    f.write(f"  Inflation: [{row['inflation_score_min']:.3f}, {row['inflation_score_max']:.3f}] (mean: {row['inflation_score_mean']:.3f})\n")
 
             f.write("\n\nLatest Prediction:\n")
             f.write(f"Current regime: {results['latest_prediction']['regime_name']}\n")

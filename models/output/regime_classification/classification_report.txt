@@ -4,11 +4,14 @@ ECONOMIC REGIME CLASSIFICATION REPORT
 Data file: input/economic_indicators_lagged.csv
 Date range: 1973-01-31 00:00:00 to 2025-05-31 00:00:00
 Total observations: 622
+Growth threshold: -0.103
+Inflation threshold: -0.119
 
 Model Performance:
 
 LOGISTIC_REGRESSION:
-Accuracy: 0.585
+Validation Accuracy: 0.566
+Test Accuracy: 0.585
 
 Classification Report:
               precision    recall  f1-score   support
@@ -24,7 +27,9 @@ weighted avg       0.80      0.59      0.61       123
 
 
 RANDOM_FOREST:
-Accuracy: 0.919
+Validation Accuracy: 0.926
+Test Accuracy: 0.919
+OOB Score: 0.948
 
 Classification Report:
               precision    recall  f1-score   support
@@ -40,11 +45,30 @@ weighted avg       0.92      0.92      0.92       123
 
 
 Regime Characteristics:
-   regime_id  regime_name  observations  percentage  avg_duration_months  growth_score_mean  growth_score_std  inflation_score_mean  inflation_score_std  growth_momentum_mean  growth_momentum_std  inflation_momentum_mean  inflation_momentum_std  financial_stress_mean  financial_stress_std  yield_curve_mean  yield_curve_std   vix_mean    vix_std
-0          1   Goldilocks           224   36.661211            12.572222           0.232197          0.241556             -0.447596             0.217512              0.046647             0.217524                -0.027326                0.171744              -0.292619              0.489168          1.094866         0.847921  14.865462   8.095520
-1          2    Reflation           141   23.076923            10.238095           0.540168          0.534197              0.573336             0.630218              0.018025             0.631043                 0.109443                0.259653               0.261878              0.724473          0.566728         0.779115   7.119103  10.499089
-2          3    Deflation           151   24.713584            12.750000          -0.569894          0.908155             -0.707363             0.384611              0.020370             1.052883                -0.033118                0.349910               0.066493              0.696344          1.065195         0.935423  20.305412   9.503959
-3          4  Stagflation            95   15.548282            12.658333          -0.739865          0.496978              1.146182             1.028585             -0.159917             0.395920                -0.112187                0.370741               0.614815              0.769054          0.211971         0.815412   9.124832  12.382366
+   regime_id  regime_name  observations  percentage  avg_duration_months  growth_score_mean  growth_score_std  growth_score_min  growth_score_max  inflation_score_mean  inflation_score_std  inflation_score_min  inflation_score_max  growth_momentum_mean  growth_momentum_std  inflation_momentum_mean  inflation_momentum_std  financial_stress_mean  financial_stress_std  yield_curve_mean  yield_curve_std   vix_mean    vix_std
+0          1   Goldilocks           224   36.661211            12.572222           0.232197          0.241556         -0.272162          1.259823             -0.447596             0.217512            -1.314638            -0.057843              0.046647             0.217524                -0.027326                0.171744              -0.292619              0.489168          1.094866         0.847921  14.865462   8.095520
+1          2    Reflation           141   23.076923            10.238095           0.540168          0.534197         -0.098141          3.895906              0.573336             0.630218            -0.147351             2.011592              0.018025             0.631043                 0.109443                0.259653               0.261878              0.724473          0.566728         0.779115   7.119103  10.499089
+2          3    Deflation           151   24.713584            12.750000          -0.569894          0.908155         -8.964631          0.083360             -0.707363             0.384611            -2.019577            -0.117108              0.020370             1.052883                -0.033118                0.349910               0.066493              0.696344          1.065195         0.935423  20.305412   9.503959
+3          4  Stagflation            95   15.548282            12.658333          -0.739865          0.496978         -1.848379          0.044623              1.146182             1.028585            -0.118851             2.897228             -0.159917             0.395920                -0.112187                0.370741               0.614815              0.769054          0.211971         0.815412   9.124832  12.382366
+
+Score Ranges by Regime:
+
+Goldilocks:
+  Growth: [-0.272, 1.260] (mean: 0.232)
+  Inflation: [-1.315, -0.058] (mean: -0.448)
+
+Reflation:
+  Growth: [-0.098, 3.896] (mean: 0.540)
+  Inflation: [-0.147, 2.012] (mean: 0.573)
+
+Deflation:
+  Growth: [-8.965, 0.083] (mean: -0.570)
+  Inflation: [-2.020, -0.117] (mean: -0.707)
+
+Stagflation:
+  Growth: [-1.848, 0.045] (mean: -0.740)
+  Inflation: [-0.119, 2.897] (mean: 1.146)
+
 
 Latest Prediction:
 Current regime: Goldilocks

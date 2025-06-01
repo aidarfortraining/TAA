@@ -1,8 +1,10 @@
 {
-  "training_date": "2025-06-01T11:59:53.788229",
+  "training_date": "2025-06-01T12:15:35.412284",
   "best_model": "random_forest",
   "features_count": 32,
   "preserve_data_mode": false,
+  "growth_threshold": -0.10277658281383109,
+  "inflation_threshold": -0.11910802289042528,
   "regimes": {
     "1": {
       "name": "Goldilocks",
