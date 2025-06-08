@@ -38,7 +38,14 @@ def get_fred_data(api_key, series_id, name):
         df = df[['value']].rename(columns={'value': name})
 
         valid_count = df[name].notna().sum()
-        print(f"    ✓ {valid_count} observations")
+        first_date = df[name].first_valid_index()
+        last_date = df[name].last_valid_index()
+
+        if first_date and last_date:
+            print(f"    ✓ {valid_count} observations ({first_date.strftime('%Y-%m')} to {last_date.strftime('%Y-%m')})")
+        else:
+            print(f"    ✓ {valid_count} observations")
+
         return df
 
     except Exception as e:
@@ -51,7 +58,7 @@ def get_yahoo_data(ticker, name):
     print(f"  Downloading {name} ({ticker})...")
 
     try:
-        data = yf.download(ticker, start='1980-01-01', progress=False, auto_adjust=True)
+        data = yf.download(ticker, start='1975-01-01', progress=False)
 
         if data.empty:
             print(f"    ✗ No data returned")
@@ -69,7 +76,14 @@ def get_yahoo_data(ticker, name):
         df[name] = data['Close']
 
         valid_count = df[name].notna().sum()
-        print(f"    ✓ {valid_count} observations")
+        first_date = df[name].first_valid_index()
+        last_date = df[name].last_valid_index()
+
+        if first_date and last_date:
+            print(f"    ✓ {valid_count} observations ({first_date.strftime('%Y-%m')} to {last_date.strftime('%Y-%m')})")
+        else:
+            print(f"    ✓ {valid_count} observations")
+
         return df
 
     except Exception as e:
@@ -78,42 +92,40 @@ def get_yahoo_data(ticker, name):
 
 
 def download_all_data(api_key):
-    """Download all financial data"""
+    """Download all financial data from FRED and Yahoo Finance"""
 
-    print("Starting download...")
+    print("Starting financial data download...")
     print("=" * 50)
 
-    # Define instruments
+    dataframes = []
+
+    # FRED instruments (Treasury, Credit, Commodities except Gold)
     fred_series = [
+        # Treasury & Credit instruments
         ('DGS10', '10Y_Treasury'),
         ('DGS30', '30Y_Treasury'),
         ('DFII10', '10Y_TIPS'),
         ('BAMLC0A0CM', 'IG_Corporate'),
-        ('BAMLH0A0HYM2', 'HY_Bond')
-    ]
+        ('BAMLH0A0HYM2', 'HY_Bond'),
 
-    yahoo_series = [
-        ('GC=F', 'Gold'),
-        ('CL=F', 'WTI_Oil'),
-        ('HG=F', 'Copper'),
-        ('ZW=F', 'Wheat')
+        # Commodity instruments (except Gold)
+        ('DCOILWTICO', 'WTI_Oil'),
+        ('PCOPPUSDM', 'Copper'),
+        ('PWHEAMTUSDM', 'Wheat')
     ]
-
-    dataframes = []
 
     # Download FRED data
-    print("\nFRED Data:")
+    print("\nFRED Data (Treasury, Credit & Commodities):")
     for series_id, name in fred_series:
         df = get_fred_data(api_key, series_id, name)
         if df is not None:
             dataframes.append(df)
 
-    # Download Yahoo data
-    print("\nYahoo Finance Data:")
-    for ticker, name in yahoo_series:
-        df = get_yahoo_data(ticker, name)
-        if df is not None:
-            dataframes.append(df)
+    # Download Gold from Yahoo Finance
+    print("\nYahoo Finance Data (Gold):")
+    gold_df = get_yahoo_data('GC=F', 'Gold')
+    if gold_df is not None:
+        dataframes.append(gold_df)
 
     # Combine data
     if not dataframes:
@@ -140,7 +152,7 @@ def save_data(df):
         return
 
     # Save file
-    filename = f'bonds_others.csv'
+    filename = 'bonds_others.csv'
     df.to_csv(filename)
     print(f"\n✓ Saved: {filename}")
 
@@ -150,17 +162,53 @@ def save_data(df):
     print(f"Variables: {len(df.columns)}")
     print(f"Period: {df.index.min().strftime('%Y-%m-%d')} to {df.index.max().strftime('%Y-%m-%d')}")
 
-    print(f"\nData coverage:")
-    for col in df.columns:
-        valid = df[col].notna().sum()
-        total = len(df)
-        pct = valid / total * 100
-        first = df[col].first_valid_index()
-        last = df[col].last_valid_index()
+    # Categorize instruments
+    treasury_credit = ['10Y_Treasury', '30Y_Treasury', '10Y_TIPS', 'IG_Corporate', 'HY_Bond']
+    commodities = ['Gold', 'WTI_Oil', 'Copper', 'Wheat']
 
-        if first and last:
-            print(
-                f"  {col:<15}: {valid:>6}/{total} ({pct:5.1f}%) | {first.strftime('%Y-%m')} - {last.strftime('%Y-%m')}")
+    print(f"\nTreasury & Credit Instruments (FRED):")
+    for col in treasury_credit:
+        if col in df.columns:
+            valid = df[col].notna().sum()
+            total = len(df)
+            pct = valid / total * 100
+            first = df[col].first_valid_index()
+            last = df[col].last_valid_index()
+
+            if first and last:
+                print(
+                    f"  {col:<15}: {valid:>6}/{total} ({pct:5.1f}%) | {first.strftime('%Y-%m')} - {last.strftime('%Y-%m')}")
+
+    print(f"\nCommodity Instruments:")
+    for col in commodities:
+        if col in df.columns:
+            valid = df[col].notna().sum()
+            total = len(df)
+            pct = valid / total * 100
+            first = df[col].first_valid_index()
+            last = df[col].last_valid_index()
+
+            source = "Yahoo" if col == "Gold" else "FRED"
+            if first and last:
+                print(
+                    f"  {col:<15}: {valid:>6}/{total} ({pct:5.1f}%) | {first.strftime('%Y-%m')} - {last.strftime('%Y-%m')} ({source})")
+
+    # Data quality assessment
+    print(f"\nData Quality Assessment:")
+    excellent_coverage = (df.count() / len(df) >= 0.9).sum()
+    good_coverage = ((df.count() / len(df) >= 0.7) & (df.count() / len(df) < 0.9)).sum()
+    fair_coverage = ((df.count() / len(df) >= 0.5) & (df.count() / len(df) < 0.7)).sum()
+    poor_coverage = (df.count() / len(df) < 0.5).sum()
+
+    print(f"  Excellent (90%+ coverage): {excellent_coverage} instruments")
+    print(f"  Good (70-90% coverage):     {good_coverage} instruments")
+    print(f"  Fair (50-70% coverage):     {fair_coverage} instruments")
+    print(f"  Poor (<50% coverage):       {poor_coverage} instruments")
+
+    # Data sources summary
+    print(f"\nData Sources:")
+    print(f"  FRED API: Treasury yields, Credit spreads, Oil, Copper, Wheat")
+    print(f"  Yahoo Finance: Gold (GC=F futures)")
 
 
 # Run download
@@ -169,5 +217,3 @@ if __name__ == "__main__":
 
     data = download_all_data(API_KEY)
     save_data(data)
-
-    print("\n✓ DONE!")
