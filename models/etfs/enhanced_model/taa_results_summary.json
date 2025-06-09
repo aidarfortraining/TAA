@@ -1,0 +1,21 @@
+{
+  "performance_metrics": {
+    "annual_return": 0.09013898989164594,
+    "annual_volatility": 0.14555148121418218,
+    "sharpe_ratio": 0.6192928381058826,
+    "sortino_ratio": 0.9397638308688522,
+    "max_drawdown": -0.48055419211460365,
+    "calmar_ratio": 0.1875729966999214,
+    "win_rate": 0.599644128113879,
+    "profit_factor": 1.6192054581120345,
+    "ulcer_index": 0.1276940408342024,
+    "total_return": 40.21142796920173,
+    "total_transaction_costs": 0.9620419824743398,
+    "avg_monthly_turnover": 0.06354717194966646
+  },
+  "backtest_period": {
+    "start": "1978-07-31 00:00:00",
+    "end": "2025-04-30 00:00:00",
+    "total_months": 562
+  }
+}

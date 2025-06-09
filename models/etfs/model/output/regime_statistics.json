@@ -1,0 +1,22 @@
+{
+  "1": {
+    "name": "Goldilocks",
+    "observations": 224,
+    "percentage": 36.01286173633441
+  },
+  "2": {
+    "name": "Reflation",
+    "observations": 147,
+    "percentage": 23.633440514469452
+  },
+  "3": {
+    "name": "Deflation",
+    "observations": 151,
+    "percentage": 24.27652733118971
+  },
+  "4": {
+    "name": "Stagflation",
+    "observations": 100,
+    "percentage": 16.077170418006432
+  }
+}
