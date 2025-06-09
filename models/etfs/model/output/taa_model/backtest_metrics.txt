@@ -1,0 +1,9 @@
+TAA STRATEGY BACKTEST RESULTS
+========================================
+
+Total Return: 1246.53
+Annual Return: 11.40
+Annual Volatility: 4.71
+Sharpe Ratio: 2.00
+Max Drawdown: -4.66
+Win Rate: 77.05

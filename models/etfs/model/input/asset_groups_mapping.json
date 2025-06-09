@@ -1,0 +1,55 @@
+{
+  "Equities_FF": [
+    "NoDur",
+    "Durbl",
+    "Manuf",
+    "Enrgy",
+    "Chems",
+    "BusEq",
+    "Telcm",
+    "Utils",
+    "Shops",
+    "Hlth",
+    "Money",
+    "Other"
+  ],
+  "Equities_ETF": [
+    "XLB",
+    "XLE",
+    "XLF",
+    "XLI",
+    "XLK",
+    "XLP",
+    "XLU",
+    "XLV",
+    "XLY",
+    "VNQ"
+  ],
+  "Bonds_Traditional": [
+    "10Y_Treasury",
+    "30Y_Treasury",
+    "10Y_TIPS",
+    "IG_Corporate",
+    "HY_Bond"
+  ],
+  "Bonds_ETF": [
+    "IEF",
+    "TLT",
+    "TIP",
+    "LQD",
+    "HYG",
+    "SHY"
+  ],
+  "Commodities": [
+    "WTI_Oil",
+    "Copper",
+    "Wheat",
+    "Gold"
+  ],
+  "Commodities_ETF": [
+    "DBA",
+    "DBB",
+    "DBE",
+    "GLD"
+  ]
+}

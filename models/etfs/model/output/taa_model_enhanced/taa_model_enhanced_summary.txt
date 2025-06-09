@@ -1,0 +1,146 @@
+TACTICAL ASSET ALLOCATION MODEL SUMMARY
+============================================================
+
+Training Date: 2025-06-09 18:27:52
+Historical Assets: 29
+Modern Assets: 12
+
+Risk Parameters:
+  Max Position Size: 25.0%
+  Min Position Size: 2.0%
+  Min Assets: 5
+  Transaction Cost: 0.10%
+
+
+HISTORICAL_1:
+Regime: Goldilocks
+Expected Return: 19.80%
+Expected Volatility: 13.15%
+Sharpe Ratio: 1.354
+Number of Assets: 13
+
+Top Holdings:
+  BusEq: 25.0%
+  XLK: 21.0%
+  Telcm: 2.0%
+  SHY: 2.0%
+  30Y_Treasury: 2.0%
+  10Y_Treasury: 2.0%
+  Money: 2.0%
+  XLP: 2.0%
+  NoDur: 2.0%
+  WTI_Oil: 2.0%
+
+HISTORICAL_2:
+Regime: Reflation
+Expected Return: 10.71%
+Expected Volatility: 11.51%
+Sharpe Ratio: 0.757
+Number of Assets: 22
+
+Top Holdings:
+  Telcm: 25.0%
+  Enrgy: 11.5%
+  XLE: 11.5%
+  Durbl: 2.0%
+  TLT: 2.0%
+  XLI: 2.0%
+  IEF: 2.0%
+  XLB: 2.0%
+  SHY: 2.0%
+  NoDur: 2.0%
+
+HISTORICAL_4:
+Regime: Stagflation
+Expected Return: 12.48%
+Expected Volatility: 12.09%
+Sharpe Ratio: 0.867
+Number of Assets: 20
+
+Top Holdings:
+  WTI_Oil: 12.5%
+  DBE: 12.5%
+  XLY: 12.2%
+  Shops: 12.2%
+  Hlth: 2.3%
+  XLV: 2.3%
+  Enrgy: 2.0%
+  BusEq: 2.0%
+  VNQ: 2.0%
+  XLK: 2.0%
+
+MODERN_1:
+Regime: Goldilocks
+Expected Return: 13.20%
+Expected Volatility: 8.17%
+Sharpe Ratio: 1.371
+Number of Assets: 9
+
+Top Holdings:
+  XLE: 20.0%
+  Manuf: 2.0%
+  Hlth: 2.0%
+  Chems: 2.0%
+  Utils: 2.0%
+  Wheat: 2.0%
+  10Y_Treasury: 2.0%
+  Shops: 2.0%
+  XLF: 2.0%
+  Telcm: 2.0%
+
+MODERN_2:
+Regime: Reflation
+Expected Return: 13.23%
+Expected Volatility: 5.85%
+Sharpe Ratio: 1.920
+Number of Assets: 11
+
+Top Holdings:
+  IG_Corporate: 20.0%
+  HY_Bond: 2.0%
+  GLD: 2.0%
+  Utils: 2.0%
+  30Y_Treasury: 2.0%
+  Chems: 2.0%
+  XLU: 2.0%
+  HYG: 2.0%
+  XLB: 2.0%
+  DBA: 2.0%
+
+MODERN_3:
+Regime: Deflation
+Expected Return: 8.45%
+Expected Volatility: 9.88%
+Sharpe Ratio: 0.652
+Number of Assets: 39
+
+Top Holdings:
+  NoDur: 2.6%
+  Durbl: 2.6%
+  Manuf: 2.6%
+  Enrgy: 2.6%
+  Chems: 2.6%
+  BusEq: 2.6%
+  Telcm: 2.6%
+  Utils: 2.6%
+  Shops: 2.6%
+  Hlth: 2.6%
+
+MODERN_4:
+Regime: Stagflation
+Expected Return: 0.70%
+Expected Volatility: 6.55%
+Sharpe Ratio: -0.199
+Number of Assets: 14
+
+Top Holdings:
+  IG_Corporate: 13.0%
+  10Y_TIPS: 9.0%
+  HY_Bond: 2.0%
+  BusEq: 2.0%
+  GLD: 2.0%
+  Gold: 2.0%
+  XLF: 2.0%
+  Money: 2.0%
+  Shops: 2.0%
+  XLU: 2.0%
