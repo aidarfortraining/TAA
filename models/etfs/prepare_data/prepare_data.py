@@ -127,8 +127,8 @@ if __name__ == "__main__":
     monthly_df = load_and_merge_financial_data()
 
     # Сохранение результата
-    monthly_df.to_csv('merged_monthly_data.csv', index=False)
-    print("\nДанные сохранены в 'merged_monthly_data.csv'")
+    monthly_df.to_csv('output/merged_monthly_data.csv', index=False)
+    print("\nДанные сохранены в 'output/merged_monthly_data.csv'")
 
     # Вариант 2: Дневные данные
     print("\n" + "=" * 50)
@@ -136,5 +136,5 @@ if __name__ == "__main__":
     daily_df = load_and_merge_daily_data()
 
     # Сохранение результата
-    daily_df.to_csv('merged_daily_data.csv', index=False)
-    print("\nДанные сохранены в 'merged_daily_data.csv'")
+    daily_df.to_csv('output/merged_daily_data.csv', index=False)
+    print("\nДанные сохранены в 'output/merged_daily_data.csv'")
