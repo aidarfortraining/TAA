@@ -1,15 +1,15 @@
 {
   "performance_metrics": {
-    "annual_return": 0.09013898989164594,
-    "annual_volatility": 0.14555148121418218,
-    "sharpe_ratio": 0.6192928381058826,
-    "sortino_ratio": 0.9397638308688522,
-    "max_drawdown": -0.48055419211460365,
-    "calmar_ratio": 0.1875729966999214,
+    "annual_return": 0.09013898989164597,
+    "annual_volatility": 0.14555148121418215,
+    "sharpe_ratio": 0.6192928381058829,
+    "sortino_ratio": 0.9397638308688525,
+    "max_drawdown": -0.48055419211460354,
+    "calmar_ratio": 0.1875729966999215,
     "win_rate": 0.599644128113879,
-    "profit_factor": 1.6192054581120345,
+    "profit_factor": 1.6192054581120343,
     "ulcer_index": 0.1276940408342024,
-    "total_return": 40.21142796920173,
+    "total_return": 40.211427969201736,
     "total_transaction_costs": 0.9620419824743398,
     "avg_monthly_turnover": 0.06354717194966646
   },
